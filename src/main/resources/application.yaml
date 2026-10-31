@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: maestrogateway
+  main:
+    banner-mode: "off"
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+info:
+  app:
+    name: MCZ Maestro Gateway
+    description: Spring Boot + Apache Camel gateway for MCZ Maestro pellet stoves
+
+camel:
+  component:
+    paho-mqtt5:
+      broker-url: ${maestro.mqtt.broker-url}
+      user-name: ${maestro.mqtt.username:}
+      password: ${maestro.mqtt.password:}
+      automatic-reconnect: true
+      clean-start: true
+      connection-timeout: 10
+      keep-alive-interval: 30
+
+maestro:
+  mqtt:
+    enabled: true
+    broker-url: tcp://localhost:1883
+    client-id: mcz-stove
+    username: ""
+    password: ""
+    payload-type: TOPIC
+    publish-prefix: Maestro
+    command-prefix: Maestro/Command
+    qos: 1
+    start-retry-interval-ms: 10000
+  stove:
+    auto-connect: true
+    host: 192.168.120.1
+    port: 81
+    path: /
+    connect-timeout: 10s
+    poll-interval-ms: 15000
+    ping-interval-ms: 5000
+    read-timeout-ms: 45000
+    reconnect-delay-ms: 2000
+    send-loop-timeout-ms: 250
+    alert-after-failed-reconnects: 5
+  home-assistant:
+    enabled: true
+    discovery-prefix: homeassistant
+    device-id: mcz_stove
+    device-name: MCZ Stove
+    manufacturer: MCZ
+    model: Maestro pellet stove
+    initial-delay-ms: 5000
+    retry-interval-ms: 60000
+    refresh-interval-ms: 3600000
+  health:
+    fail-on-stove-disconnect: false
+    stale-after: 60s
+
+logging:
+  level:
+    root: INFO
+    io.droidme.maestrogateway: INFO
+    org.apache.camel.component.paho.mqtt5: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"

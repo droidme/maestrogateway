@@ -1,0 +1,33 @@
+services:
+  maestrogateway:
+    build: .
+    image: maestrogateway:latest
+    # Host networking is required on Linux: the stove exposes its own Wi-Fi access
+    # point and must be reachable at 192.168.120.1 from the container host.
+    network_mode: host
+    environment:
+      MAESTRO_MQTT_BROKER_URL: ${MAESTRO_MQTT_BROKER_URL:-tcp://192.168.1.10:1883}
+      MAESTRO_MQTT_USERNAME: ${MAESTRO_MQTT_USERNAME:-}
+      MAESTRO_MQTT_PASSWORD: ${MAESTRO_MQTT_PASSWORD:-}
+      MAESTRO_MQTT_CLIENT_ID: ${MAESTRO_MQTT_CLIENT_ID:-mcz-stove}
+      MAESTRO_MQTT_PAYLOAD_TYPE: ${MAESTRO_MQTT_PAYLOAD_TYPE:-TOPIC}
+      MAESTRO_MQTT_PUBLISH_PREFIX: ${MAESTRO_MQTT_PUBLISH_PREFIX:-Maestro}
+      MAESTRO_MQTT_COMMAND_PREFIX: ${MAESTRO_MQTT_COMMAND_PREFIX:-Maestro/Command}
+      MAESTRO_MQTT_QOS: ${MAESTRO_MQTT_QOS:-1}
+      MAESTRO_STOVE_AUTO_CONNECT: ${MAESTRO_STOVE_AUTO_CONNECT:-true}
+      MAESTRO_STOVE_HOST: ${MAESTRO_STOVE_HOST:-192.168.120.1}
+      MAESTRO_STOVE_PORT: ${MAESTRO_STOVE_PORT:-81}
+      MAESTRO_STOVE_POLL_INTERVAL_MS: ${MAESTRO_STOVE_POLL_INTERVAL_MS:-15000}
+      MAESTRO_HOME_ASSISTANT_ENABLED: ${MAESTRO_HOME_ASSISTANT_ENABLED:-true}
+      MAESTRO_HOME_ASSISTANT_DISCOVERY_PREFIX: ${MAESTRO_HOME_ASSISTANT_DISCOVERY_PREFIX:-homeassistant}
+      MAESTRO_HOME_ASSISTANT_DEVICE_ID: ${MAESTRO_HOME_ASSISTANT_DEVICE_ID:-mcz_stove}
+      MAESTRO_HOME_ASSISTANT_DEVICE_NAME: ${MAESTRO_HOME_ASSISTANT_DEVICE_NAME:-MCZ Stove}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      TZ: ${TZ:-Europe/Amsterdam}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
