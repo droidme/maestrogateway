@@ -2,18 +2,14 @@ package io.droidme.maestrogateway.route;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.droidme.maestrogateway.TestProperties;
-import io.droidme.maestrogateway.config.MaestroProperties;
 import io.droidme.maestrogateway.metrics.MaestroMetrics;
 import io.droidme.maestrogateway.protocol.CommandRegistry;
-import io.droidme.maestrogateway.protocol.PayloadType;
 import io.droidme.maestrogateway.service.ChangeDetector;
 import io.droidme.maestrogateway.service.CommandQueue;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.camel.Exchange;
-import org.apache.camel.component.paho.mqtt5.PahoMqtt5Constants;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.support.DefaultExchange;
 import org.junit.jupiter.api.AfterEach;
@@ -30,12 +26,7 @@ class CommandIngestProcessorTest {
 
     @BeforeEach
     void setUp() {
-        usePayloadType(PayloadType.TOPIC);
-    }
-
-    private void usePayloadType(PayloadType payloadType) {
-        MaestroProperties properties = TestProperties.bind(Map.of("mqtt.payload-type", payloadType.name()));
-        processor = new CommandIngestProcessor(properties, new CommandRegistry(), queue, changeDetector, metrics);
+        processor = new CommandIngestProcessor(new CommandRegistry(), queue, changeDetector, metrics);
     }
 
     @AfterEach
@@ -43,18 +34,15 @@ class CommandIngestProcessorTest {
         context.close();
     }
 
-    private Exchange exchange(String topic, String payload) {
+    private Exchange exchange(String payload) {
         Exchange exchange = new DefaultExchange(context);
-        if (topic != null) {
-            exchange.getIn().setHeader(PahoMqtt5Constants.MQTT_TOPIC, topic);
-        }
         exchange.getIn().setBody(payload);
         return exchange;
     }
 
     @Test
-    void readsTopicCommandsInTopicMode() throws Exception {
-        processor.process(exchange("Maestro/Command/Power", "1"));
+    void readsJsonCommands() throws Exception {
+        processor.process(exchange("{\"Command\":\"Power\",\"Value\":1}"));
 
         assertThat(queue.poll(10, TimeUnit.MILLISECONDS))
                 .isNotNull()
@@ -65,34 +53,19 @@ class CommandIngestProcessorTest {
     }
 
     @Test
-    void readsJsonCommandsInJsonMode() throws Exception {
-        usePayloadType(PayloadType.JSON);
-
-        processor.process(exchange("Maestro/Command",
-                "{\"Command\":\"Temperature_Setpoint\",\"Value\":20.5}"));
+    void readsStringValues() throws Exception {
+        processor.process(exchange("{\"Command\":\"Set_DateTime\",\"Value\":\"NOW\"}"));
 
         assertThat(queue.poll(10, TimeUnit.MILLISECONDS))
                 .isNotNull()
-                .satisfies(command -> {
-                    assertThat(command.definition().name()).isEqualTo("Temperature_Setpoint");
-                    assertThat(command.value()).isEqualTo("20.5");
-                });
-    }
-
-    @Test
-    void acceptsJsonOnATopicMessage() throws Exception {
-        processor.process(exchange("Maestro/Command", "{\"Command\":\"Eco_Mode\",\"Value\":1}"));
-
-        assertThat(queue.poll(10, TimeUnit.MILLISECONDS))
-                .isNotNull()
-                .satisfies(command -> assertThat(command.definition().name()).isEqualTo("Eco_Mode"));
+                .satisfies(command -> assertThat(command.value()).isEqualTo("NOW"));
     }
 
     @Test
     void refreshClearsTheChangeCache() throws Exception {
         changeDetector.changed(Map.of("Power", 1));
 
-        processor.process(exchange("Maestro/Command/Refresh", "1"));
+        processor.process(exchange("{\"Command\":\"Refresh\",\"Value\":1}"));
 
         assertThat(changeDetector.size()).isZero();
         assertThat(queue.poll(10, TimeUnit.MILLISECONDS)).isNull();
@@ -100,15 +73,16 @@ class CommandIngestProcessorTest {
 
     @Test
     void ignoresUnknownCommandsAndMalformedJson() throws Exception {
-        processor.process(exchange("Maestro/Command/Nope", "1"));
-        processor.process(exchange("Maestro/Command", "{not json"));
+        processor.process(exchange("{\"Command\":\"Nope\",\"Value\":1}"));
+        processor.process(exchange("{not json"));
+        processor.process(exchange("[\"Power\",1]"));
 
         assertThat(queue.poll(10, TimeUnit.MILLISECONDS)).isNull();
     }
 
     @Test
     void resolvesAliases() throws Exception {
-        processor.process(exchange("Maestro/Command/Diagnostics_DuctedFan1", "50"));
+        processor.process(exchange("{\"Command\":\"Diagnostics_DuctedFan1\",\"Value\":50}"));
 
         assertThat(queue.poll(10, TimeUnit.MILLISECONDS))
                 .isNotNull()

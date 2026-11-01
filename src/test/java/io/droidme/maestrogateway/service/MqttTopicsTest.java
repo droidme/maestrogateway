@@ -13,12 +13,9 @@ class MqttTopicsTest {
     void buildsTopicsFromTheConfiguredPrefixes() {
         MqttTopics topics = new MqttTopics(TestProperties.defaults());
 
-        assertThat(topics.info("Ambient_Temperature")).isEqualTo("Maestro/Ambient_Temperature");
-        assertThat(topics.state()).isEqualTo("Maestro/state");
-        assertThat(topics.status()).isEqualTo("Maestro/Status");
         assertThat(topics.json()).isEqualTo("Maestro");
-        assertThat(topics.command("Power")).isEqualTo("Maestro/Command/Power");
-        assertThat(topics.commandSubscription()).isEqualTo("Maestro/Command/#");
+        assertThat(topics.state()).isEqualTo("Maestro/state");
+        assertThat(topics.commandTopic()).isEqualTo("Maestro/Command");
     }
 
     @Test
@@ -28,7 +25,8 @@ class MqttTopicsTest {
                 "mqtt.command-prefix", "Home/Stove/Command/"));
         MqttTopics topics = new MqttTopics(properties);
 
-        assertThat(topics.info("Power")).isEqualTo("Home/Stove/Power");
-        assertThat(topics.commandSubscription()).isEqualTo("Home/Stove/Command/#");
+        assertThat(topics.json()).isEqualTo("Home/Stove");
+        assertThat(topics.state()).isEqualTo("Home/Stove/state");
+        assertThat(topics.commandTopic()).isEqualTo("Home/Stove/Command");
     }
 }

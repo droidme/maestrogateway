@@ -67,7 +67,7 @@ public class MaestroRoutes extends RouteBuilder {
         if (properties.mqtt().enabled()) {
             String clientId = URLEncoder.encode(
                     properties.mqtt().clientId() + "-sub", StandardCharsets.UTF_8);
-            from("paho-mqtt5:" + topics.commandSubscription() + "?clientId=" + clientId
+            from("paho-mqtt5:" + topics.commandTopic() + "?clientId=" + clientId
                     + "&qos=" + properties.mqtt().qos())
                     .routeId(MQTT_COMMAND_ROUTE_ID)
                     .autoStartup(false)

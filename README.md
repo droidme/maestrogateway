@@ -4,7 +4,7 @@ A Spring Boot + Apache Camel gateway for **MCZ pellet stoves with Maestro techno
 
 It speaks the stove's local WebSocket protocol and exposes the stove to Home Assistant,
 openHAB or any other MQTT-capable home automation system. It is a Java port of the Python
-[Chibald/maestrogateway](https://github.com/Chibald/maestrogateway) project, with the same MQTT
+[Chibald/maestrogateway](https://github.com/Chibald/maestrogateway) project, with a JSON-only MQTT
 interface plus Home Assistant discovery, health endpoints and metrics.
 
 > **Warning** — the protocol is reverse engineered. Use at your own risk. See the original
@@ -27,15 +27,15 @@ interface plus Home Assistant discovery, health endpoints and metrics.
                                                          │        │                 │
 ┌──────────────┐               MQTT 5                     │        ▼                 │
 │ MQTT broker  │ ◄─────────────────────────────────────► │  Paho MQTT 5 producer    │
-│ (Mosquitto,  │   Maestro/<Field>, Maestro/Command/#    │                          │
+│ (Mosquitto,  │   Maestro (JSON), Maestro/Command       │                          │
 │  HA add-on)  │                                         │  /actuator/health        │
 └──────────────┘                                         └──────────────────────────┘
 ```
 
 * Connects to the stove's access point (`192.168.120.1:81` by default).
 * Polls `C|RecuperoInfo` every 15 seconds and parses the pipe-separated hexadecimal frame.
-* Publishes only **changed** values, so MQTT is not flooded.
-* Accepts commands on `Maestro/Command/<Name>` and translates them to
+* Publishes only **changed** values as one JSON document, so MQTT is not flooded.
+* Accepts JSON commands on `Maestro/Command` and translates them to
   `C|WriteParametri|…` / `C|Diagnostica|…` / `C|SalvaDataOra|…`.
 * Reconnects automatically, with an optional `disconnected` status after a configurable number of
   failed attempts.
@@ -113,9 +113,8 @@ All properties live under `maestro.*` and can be overridden with environment var
 | `maestro.mqtt.client-id` | `MAESTRO_MQTT_CLIENT_ID` | `mcz-stove` | Base client id (`-sub`/`-pub` are appended) |
 | `maestro.mqtt.username` | `MAESTRO_MQTT_USERNAME` | – | Broker username |
 | `maestro.mqtt.password` | `MAESTRO_MQTT_PASSWORD` | – | Broker password |
-| `maestro.mqtt.payload-type` | `MAESTRO_MQTT_PAYLOAD_TYPE` | `TOPIC` | `TOPIC` (one topic per value) or `JSON` (one document) |
-| `maestro.mqtt.publish-prefix` | `MAESTRO_MQTT_PUBLISH_PREFIX` | `Maestro` | Prefix for state topics |
-| `maestro.mqtt.command-prefix` | `MAESTRO_MQTT_COMMAND_PREFIX` | `Maestro/Command` | Prefix for command topics |
+| `maestro.mqtt.publish-prefix` | `MAESTRO_MQTT_PUBLISH_PREFIX` | `Maestro` | JSON state and status topic |
+| `maestro.mqtt.command-prefix` | `MAESTRO_MQTT_COMMAND_PREFIX` | `Maestro/Command` | JSON command topic |
 | `maestro.mqtt.qos` | `MAESTRO_MQTT_QOS` | `1` | QoS for publish and subscribe |
 | `maestro.mqtt.start-retry-interval-ms` | `MAESTRO_MQTT_START_RETRY_INTERVAL_MS` | `10000` | Retry interval while the broker is unreachable at startup |
 
@@ -140,7 +139,7 @@ All properties live under `maestro.*` and can be overridden with environment var
 |---|---|---|
 | `maestro.home-assistant.enabled` | `true` | Publish MQTT discovery documents |
 | `maestro.home-assistant.discovery-prefix` | `homeassistant` | HA discovery prefix |
-| `maestro.home-assistant.device-id` | `mcz_stove` | Device identifier and topic suffix |
+| `maestro.home-assistant.device-id` | `mcz_stove` | Device identifier used in discovery topics |
 | `maestro.home-assistant.device-name` | `MCZ Stove` | Display name |
 | `maestro.home-assistant.manufacturer` / `.model` | `MCZ` / `Maestro pellet stove` | Device metadata |
 | `maestro.home-assistant.refresh-interval-ms` | `3600000` | Republish retained discovery documents (survives broker restarts losing retained state) |
@@ -151,55 +150,33 @@ All properties live under `maestro.*` and can be overridden with environment var
 
 ## MQTT interface
 
-### Published state (`TOPIC` mode, default)
+### Published state
 
-| Topic | Payload |
-|---|---|
-| `Maestro/Ambient_Temperature` | `23.5` |
-| `Maestro/Stove_State` | `11` (see state table below) |
-| `Maestro/Power` | `1` / `0` (derived from `Stove_State`) |
-| `Maestro/Diagnostics` | `1` / `0` |
-| `Maestro/Fume_Temperature` | `155` |
-| `Maestro/Total_Operating_Hours` | `307:00:03` |
-| `Maestro/state` | `ON` (heartbeat, published every poll while connected) |
-| `Maestro/Status` | `connected` / `disconnected` |
-
-The full field list matches the Python gateway (61 information fields). Only changed values are
-published. Unknown/new firmware fields are published as `Unknown<n>`.
-
-### Published state (`JSON` mode)
-
-Everything is published as one JSON object on `Maestro`:
+All changed values are published as one JSON object on `Maestro`:
 
 ```json
 {"Stove_State":11,"Power":1,"Ambient_Temperature":23.5,"Fume_Temperature":155}
 ```
 
 Connection status is published as `{"Status":"connected"}` / `{"Status":"disconnected"}` on the same
-topic. The `Maestro/state = ON` heartbeat keeps its own topic in both payload modes, matching the
-original gateway.
+topic. `Maestro/state = ON` is published every poll while connected as a heartbeat on its own topic.
+
+The full field list matches the Python gateway (61 information fields). Only changed values are
+published. Unknown/new firmware fields are published as `Unknown<n>`.
 
 ### Commands
 
-`TOPIC` mode — payload is the value:
+Publish JSON to `Maestro/Command`:
 
 ```bash
-mosquitto_pub -t 'Maestro/Command/Power' -m '1'                  # on
-mosquitto_pub -t 'Maestro/Command/Power' -m '0'                  # off
-mosquitto_pub -t 'Maestro/Command/Temperature_Setpoint' -m '20.5'
-mosquitto_pub -t 'Maestro/Command/Power_Level' -m '3'
-mosquitto_pub -t 'Maestro/Command/Eco_Mode' -m '1'
-mosquitto_pub -t 'Maestro/Command/Refresh' -m '1'                # clear change cache
-mosquitto_pub -t 'Maestro/Command/GetInfo' -m '1'                # poll immediately
-mosquitto_pub -t 'Maestro/Command/Set_DateTime' -m 'NOW'         # sync stove clock
-```
-
-`JSON` mode — publish to `Maestro/Command`:
-
-```json
-{"Command":"Power","Value":1}
-{"Command":"Temperature_Setpoint","Value":20.5}
-{"Command":"Refresh","Value":1}
+mosquitto_pub -t 'Maestro/Command' -m '{"Command":"Power","Value":1}'                  # on
+mosquitto_pub -t 'Maestro/Command' -m '{"Command":"Power","Value":0}'                  # off
+mosquitto_pub -t 'Maestro/Command' -m '{"Command":"Temperature_Setpoint","Value":20.5}'
+mosquitto_pub -t 'Maestro/Command' -m '{"Command":"Power_Level","Value":3}'
+mosquitto_pub -t 'Maestro/Command' -m '{"Command":"Eco_Mode","Value":1}'
+mosquitto_pub -t 'Maestro/Command' -m '{"Command":"Refresh","Value":1}'                # clear change cache
+mosquitto_pub -t 'Maestro/Command' -m '{"Command":"GetInfo","Value":1}'                # poll immediately
+mosquitto_pub -t 'Maestro/Command' -m '{"Command":"Set_DateTime","Value":"NOW"}'       # sync stove clock
 ```
 
 Supported command names:
@@ -228,6 +205,9 @@ With `maestro.home-assistant.enabled=true` the gateway publishes retained discov
 * numbers: target temperature (5–40 °C, 0.5 steps), boiler setpoint (30–80 °C), power level (1–5),
   fan speed (0–6);
 * buttons: reset alarm, sync clock.
+
+Entities read state from the JSON document on `Maestro`; switches, numbers and buttons publish JSON
+commands to `Maestro/Command`.
 
 All entities share one device (`identifiers: ["mcz_stove"]`). Discovery is retried until the broker
 accepts it, then refreshed hourly (`maestro.home-assistant.refresh-interval-ms`) so a broker restart
@@ -260,8 +240,9 @@ A disconnected stove is reported as `UP` with details by default; set
 
 ## Differences from the Python gateway
 
-The MQTT contract (topic names, command names, payload modes, 15 s polling, change-only publishing,
-`Maestro/state` heartbeat, `Maestro/Status`) is preserved. Intentional improvements:
+The stove-facing behaviour, command names, 15 s polling, change-only publishing and the
+`Maestro/state` heartbeat are preserved. The MQTT interface is intentionally JSON-only: one state
+document on `Maestro` and JSON commands on `Maestro/Command`. Intentional improvements:
 
 | Area | Python | Java |
 |---|---|---|
@@ -275,8 +256,8 @@ The MQTT contract (topic names, command names, payload modes, 15 s polling, chan
 | Configuration | `_config_.py` | `application.yaml` + env vars |
 
 The JSON publish topic is `Maestro` (the Python version used `Maestro/`, with a trailing slash).
-The command subscription is `Maestro/Command/#` in both modes, so a JSON command published at
-`Maestro/Command` also works.
+The command subscription is the exact `Maestro/Command` topic, so per-command topics such as
+`Maestro/Command/Power` are no longer used.
 
 ---
 
@@ -284,13 +265,13 @@ The command subscription is `Maestro/Command/#` in both modes, so a JSON command
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-mvn test          # 55 unit and route tests
+mvn test          # 52 unit and route tests
 mvn spring-boot:run
 ```
 
 Tests cover frame parsing (temperatures, timespans, special fields, invalid tokens, unknown
 firmware fields), command encoding, command registry aliases, change detection, command debounce,
-MQTT topic building, MQTT publishing (topic/JSON payloads, heartbeat, retained discovery),
+MQTT topic building, MQTT publishing (JSON payloads, heartbeat, retained discovery),
 Home Assistant discovery documents, and the Camel frame route.
 
 To run the application without a stove or broker:
@@ -309,9 +290,9 @@ java -jar target/maestrogateway-1.0.0-SNAPSHOT.jar \
 | Symptom | Check |
 |---|---|
 | `Websocket: connection ... failed` | Can the host ping `192.168.120.1`? Is the stove's Wi-Fi AP connected? |
-| No MQTT messages | Is the broker MQTT 5 capable? Check `MAESTRO_MQTT_BROKER_URL`, credentials and `Maestro/Status`. |
+| No MQTT messages | Is the broker MQTT 5 capable? Check `MAESTRO_MQTT_BROKER_URL`, credentials and the `Status` field on `Maestro`. |
 | `MQTT: broker ... not reachable yet` | The subscriber retries every 10 s; the gateway keeps polling the stove. |
-| Commands ignored | Diagnostics commands require the stove to be off and in diagnostics mode. Check the logs for the encoded string. |
+| Commands ignored | Publish `{"Command":"…","Value":…}` to `Maestro/Command`. Diagnostics commands require the stove to be off and in diagnostics mode. |
 | No Home Assistant entities | Ensure MQTT discovery is enabled in HA, the discovery prefix matches, and the gateway could publish retained messages. |
 | Stove state stale | `/actuator/health/maestro` shows the last frame age; the watchdog reconnects after 45 s of silence. |
 

@@ -15,7 +15,6 @@ import io.droidme.maestrogateway.TestProperties;
 import io.droidme.maestrogateway.metrics.MaestroMetrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.component.paho.mqtt5.PahoMqtt5Constants;
@@ -46,29 +45,8 @@ class MqttPublisherTest {
     }
 
     @Test
-    void publishesOneTopicPerFieldInTopicMode() {
-        Map<String, Object> values = new LinkedHashMap<>();
-        values.put("Ambient_Temperature", 23.5);
-        values.put("Stove_State", 11);
-
-        assertThat(publisher.publishInfo(values)).isTrue();
-
-        ArgumentCaptor<String> uri = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
-        ArgumentCaptor<Map<String, Object>> headers = headers();
-        verify(template, times(2)).sendBodyAndHeaders(uri.capture(), body.capture(), headers.capture());
-        assertThat(uri.getAllValues()).containsOnly("paho-mqtt5:mcz-publish?clientId=mcz-stove-pub");
-        assertThat(headers.getAllValues())
-                .extracting(map -> map.get(PahoMqtt5Constants.CAMEL_PAHO_OVERRIDE_TOPIC))
-                .containsExactly("Maestro/Ambient_Temperature", "Maestro/Stove_State");
-        assertThat(new String((byte[]) body.getAllValues().get(0), StandardCharsets.UTF_8)).isEqualTo("23.5");
-    }
-
-    @Test
     @SuppressWarnings("unchecked")
-    void publishesASingleJsonDocumentInJsonMode() {
-        publisher = publisher(provider(), Map.of("mqtt.payload-type", "JSON"));
-
+    void publishesASingleJsonDocument() {
         assertThat(publisher.publishInfo(Map.of("Ambient_Temperature", 23.5))).isTrue();
 
         ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
@@ -81,9 +59,7 @@ class MqttPublisherTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void keepsTheHeartbeatOnItsOwnTopicInJsonMode() {
-        publisher = publisher(provider(), Map.of("mqtt.payload-type", "JSON"));
-
+    void keepsTheHeartbeatOnItsOwnTopic() {
         assertThat(publisher.publishState("ON")).isTrue();
 
         ArgumentCaptor<Map<String, Object>> headers = headers();
@@ -93,9 +69,7 @@ class MqttPublisherTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void publishesTheStatusAsJsonInJsonMode() {
-        publisher = publisher(provider(), Map.of("mqtt.payload-type", "JSON"));
-
+    void publishesTheStatusAsJson() {
         assertThat(publisher.publishStatus("connected")).isTrue();
 
         ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);

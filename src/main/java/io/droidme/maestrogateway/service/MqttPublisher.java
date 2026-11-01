@@ -3,7 +3,6 @@ package io.droidme.maestrogateway.service;
 import com.google.gson.Gson;
 import io.droidme.maestrogateway.config.MaestroProperties;
 import io.droidme.maestrogateway.metrics.MaestroMetrics;
-import io.droidme.maestrogateway.protocol.PayloadType;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -50,19 +49,12 @@ public class MqttPublisher {
         this.endpointUri = PRODUCER_ENDPOINT + "?clientId=" + clientId;
     }
 
-    /** Publishes changed fields, either one topic per field or one JSON document. */
+    /** Publishes changed fields as one JSON document on the publish prefix. */
     public boolean publishInfo(Map<String, Object> values) {
         if (!properties.mqtt().enabled() || values.isEmpty()) {
             return true;
         }
-        if (properties.mqtt().payloadType() == PayloadType.JSON) {
-            return publish(topics.json(), gson.toJson(values), false);
-        }
-        boolean allPublished = true;
-        for (Map.Entry<String, Object> entry : values.entrySet()) {
-            allPublished &= publish(topics.info(entry.getKey()), PayloadFormatter.format(entry.getValue()), false);
-        }
-        return allPublished;
+        return publish(topics.json(), gson.toJson(values), false);
     }
 
     /** Publishes the {@code state=ON} heartbeat used by the original gateway. */
@@ -70,19 +62,16 @@ public class MqttPublisher {
         if (!properties.mqtt().enabled()) {
             return true;
         }
-        // The Python gateway always uses a plain topic for the heartbeat, even in JSON mode.
+        // The heartbeat keeps its own plain topic; only state and status are JSON.
         return publish(topics.state(), state, false);
     }
 
-    /** Publishes the WebSocket connection status. */
+    /** Publishes the WebSocket connection status as JSON on the publish prefix. */
     public boolean publishStatus(String status) {
         if (!properties.mqtt().enabled()) {
             return true;
         }
-        if (properties.mqtt().payloadType() == PayloadType.JSON) {
-            return publish(topics.json(), gson.toJson(Map.of("Status", status)), false);
-        }
-        return publish(topics.status(), status, false);
+        return publish(topics.json(), gson.toJson(Map.of("Status", status)), false);
     }
 
     public boolean publishJson(String topic, Object payload, boolean retained) {

@@ -49,7 +49,7 @@ public class MqttRouteSupervisor implements ApplicationListener<ApplicationReady
         }
         try {
             camelContext.getRouteController().startRoute(MaestroRoutes.MQTT_COMMAND_ROUTE_ID);
-            log.info("MQTT: subscribed to {}", properties.mqtt().commandPrefix() + "/#");
+            log.info("MQTT: subscribed to {}", properties.mqtt().commandPrefix());
         } catch (Exception e) {
             log.debug("MQTT: broker {} not reachable yet ({}), retrying",
                     properties.mqtt().brokerUrl(), rootMessage(e));

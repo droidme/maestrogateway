@@ -1,6 +1,5 @@
 package io.droidme.maestrogateway.config;
 
-import io.droidme.maestrogateway.protocol.PayloadType;
 import java.time.Duration;
 import java.util.Objects;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -37,10 +36,8 @@ public record MaestroProperties(Mqtt mqtt, Stove stove, HomeAssistant homeAssist
      * @param clientId               base client id; {@code -sub} and {@code -pub} are appended
      * @param username               broker username
      * @param password               broker password
-     * @param payloadType            {@code TOPIC}: one MQTT topic per value, {@code JSON}: a single
-     *                               JSON object
-     * @param publishPrefix          prefix for all published state topics, without trailing slash
-     * @param commandPrefix          prefix for all command topics, without trailing slash
+     * @param publishPrefix          prefix for the JSON state topic, without trailing slash
+     * @param commandPrefix          JSON command topic, without trailing slash
      * @param qos                    MQTT quality of service used for publishing and subscribing
      * @param startRetryIntervalMs   retry interval while the broker is unreachable at startup
      */
@@ -50,7 +47,6 @@ public record MaestroProperties(Mqtt mqtt, Stove stove, HomeAssistant homeAssist
             String clientId,
             String username,
             String password,
-            PayloadType payloadType,
             String publishPrefix,
             String commandPrefix,
             int qos,

@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.stereotype.Component;
 
 /**
- * Publishes {@code Maestro/Status} transitions.
+ * Publishes the {@code Status} field on the JSON state topic.
  *
  * <p>Publishes {@code connected} on every successful connect and {@code disconnected} only after the
  * configured number of failed reconnects, so a short network hiccup does not produce noise.

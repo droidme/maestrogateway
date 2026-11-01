@@ -2,43 +2,37 @@ package io.droidme.maestrogateway.route;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import io.droidme.maestrogateway.config.MaestroProperties;
 import io.droidme.maestrogateway.metrics.MaestroMetrics;
 import io.droidme.maestrogateway.protocol.CommandDefinition;
 import io.droidme.maestrogateway.protocol.CommandRegistry;
-import io.droidme.maestrogateway.protocol.PayloadType;
 import io.droidme.maestrogateway.service.ChangeDetector;
 import io.droidme.maestrogateway.service.CommandQueue;
 import io.droidme.maestrogateway.service.PendingCommand;
 import java.util.Optional;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.apache.camel.component.paho.mqtt5.PahoMqtt5Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Turns an MQTT command message into a {@link PendingCommand}.
+ * Turns a JSON command message into a {@link PendingCommand}.
  *
- * <p>In {@code TOPIC} mode the command name is the last topic segment
- * ({@code Maestro/Command/Power}) and the payload is the value. In {@code JSON} mode the payload is
- * {@code {"Command":"Power","Value":1}}. A JSON payload on a topic message is also accepted.
+ * <p>The payload is {@code {"Command":"Power","Value":1}}, published on the configured command
+ * topic ({@code Maestro/Command} by default).
  */
 @Component
 public class CommandIngestProcessor implements Processor {
 
     private static final Logger log = LoggerFactory.getLogger(CommandIngestProcessor.class);
 
-    private final MaestroProperties properties;
     private final CommandRegistry registry;
     private final CommandQueue queue;
     private final ChangeDetector changeDetector;
     private final MaestroMetrics metrics;
 
-    public CommandIngestProcessor(MaestroProperties properties, CommandRegistry registry, CommandQueue queue,
+    public CommandIngestProcessor(CommandRegistry registry, CommandQueue queue,
             ChangeDetector changeDetector, MaestroMetrics metrics) {
-        this.properties = properties;
         this.registry = registry;
         this.queue = queue;
         this.changeDetector = changeDetector;
@@ -47,32 +41,12 @@ public class CommandIngestProcessor implements Processor {
 
     @Override
     public void process(Exchange exchange) {
-        String topic = exchange.getIn().getHeader(PahoMqtt5Constants.MQTT_TOPIC, String.class);
-        String payload = exchange.getIn().getBody(String.class);
-
-        String name;
-        String value;
-        if (properties.mqtt().payloadType() == PayloadType.JSON) {
-            JsonObject json = parseJson(payload);
-            if (json == null) {
-                return;
-            }
-            name = stringValue(json, "Command");
-            value = stringValue(json, "Value");
-        } else {
-            String suffix = topic == null ? "" : topic.substring(topic.lastIndexOf('/') + 1);
-            if (suffix.isEmpty() || (payload != null && payload.trim().startsWith("{"))) {
-                JsonObject json = parseJson(payload);
-                if (json == null) {
-                    return;
-                }
-                name = stringValue(json, "Command");
-                value = stringValue(json, "Value");
-            } else {
-                name = suffix;
-                value = payload == null ? "" : payload.trim();
-            }
+        JsonObject json = parseJson(exchange.getIn().getBody(String.class));
+        if (json == null) {
+            return;
         }
+        String name = stringValue(json, "Command");
+        String value = stringValue(json, "Value");
 
         Optional<CommandDefinition> found = registry.find(name);
         if (found.isEmpty()) {

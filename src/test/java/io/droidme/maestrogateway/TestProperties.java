@@ -41,8 +41,7 @@ public final class TestProperties {
      * Properties bound from {@code application.yaml} plus the given overrides.
      *
      * @param overrides property names relative to the {@code maestro} prefix, for example
-     *                  {@code mqtt.payload-type}; a name already starting with {@code maestro.} is
-     *                  used as-is
+     *                  {@code mqtt.qos}; a name already starting with {@code maestro.} is used as-is
      */
     public static MaestroProperties bind(Map<String, Object> overrides) {
         try {

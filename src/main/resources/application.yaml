@@ -39,7 +39,6 @@ maestro:
     client-id: mcz-stove
     username: ""
     password: ""
-    payload-type: TOPIC
     publish-prefix: Maestro
     command-prefix: Maestro/Command
     qos: 1

@@ -3,7 +3,6 @@ package io.droidme.maestrogateway.homeassistant;
 import io.droidme.maestrogateway.config.MaestroProperties;
 import io.droidme.maestrogateway.protocol.InfoField;
 import io.droidme.maestrogateway.protocol.InformationRegistry;
-import io.droidme.maestrogateway.protocol.PayloadType;
 import io.droidme.maestrogateway.protocol.ValueType;
 import io.droidme.maestrogateway.service.MqttTopics;
 import java.util.ArrayList;
@@ -18,8 +17,8 @@ import org.springframework.stereotype.Component;
  * Builds Home Assistant MQTT discovery documents for the stove.
  *
  * <p>Every information field becomes a sensor (or binary sensor for on/off fields). A curated set
- * of controls becomes switches, numbers and buttons. The documents work in both payload modes by
- * using a {@code value_template} when a single JSON topic is used.
+ * of controls becomes switches, numbers and buttons. State is read from the single JSON topic via
+ * {@code value_template}; controls publish JSON commands to the configured command topic.
  */
 @Component
 public class DiscoveryPayloadFactory {
@@ -112,9 +111,9 @@ public class DiscoveryPayloadFactory {
 
     private DiscoveryEntity switchEntity(String objectId, String name, String command, String stateKey, String icon) {
         Map<String, Object> payload = base(name, objectId);
-        payload.put("command_topic", topics.command(command));
-        payload.put("payload_on", "1");
-        payload.put("payload_off", "0");
+        payload.put("command_topic", topics.commandTopic());
+        payload.put("payload_on", jsonCommand(command, "1"));
+        payload.put("payload_off", jsonCommand(command, "0"));
         payload.put("state_on", "1");
         payload.put("state_off", "0");
         payload.put("icon", icon);
@@ -125,7 +124,8 @@ public class DiscoveryPayloadFactory {
     private DiscoveryEntity numberEntity(String objectId, String name, String command, String stateKey,
             double min, double max, double step, String unit, String deviceClass, String icon) {
         Map<String, Object> payload = base(name, objectId);
-        payload.put("command_topic", topics.command(command));
+        payload.put("command_topic", topics.commandTopic());
+        payload.put("command_template", jsonCommandTemplate(command));
         payload.put("min", min);
         payload.put("max", max);
         payload.put("step", step);
@@ -143,8 +143,8 @@ public class DiscoveryPayloadFactory {
 
     private DiscoveryEntity button(String objectId, String name, String command, String payloadPress, String icon) {
         Map<String, Object> payload = base(name, objectId);
-        payload.put("command_topic", topics.command(command));
-        payload.put("payload_press", payloadPress);
+        payload.put("command_topic", topics.commandTopic());
+        payload.put("payload_press", jsonCommand(command, payloadPress));
         payload.put("icon", icon);
         return new DiscoveryEntity("button", objectId, payload);
     }
@@ -172,12 +172,16 @@ public class DiscoveryPayloadFactory {
     }
 
     private void applyState(Map<String, Object> payload, String key) {
-        if (properties.mqtt().payloadType() == PayloadType.JSON) {
-            payload.put("state_topic", topics.json());
-            payload.put("value_template", "{{ value_json." + key + " }}");
-        } else {
-            payload.put("state_topic", topics.info(key));
-        }
+        payload.put("state_topic", topics.json());
+        payload.put("value_template", "{{ value_json." + key + " }}");
+    }
+
+    private static String jsonCommand(String command, String value) {
+        return "{\"Command\":\"" + command + "\",\"Value\":\"" + value + "\"}";
+    }
+
+    private static String jsonCommandTemplate(String command) {
+        return "{\"Command\":\"" + command + "\",\"Value\":\"{{ value }}\"}";
     }
 
     private static String humanize(String name) {
