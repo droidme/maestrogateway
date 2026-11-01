@@ -1,8 +1,0 @@
-target/
-.git/
-.gitignore
-.env
-*.log
-.idea/
-.vscode/
-README.md

@@ -1,7 +1,6 @@
 services:
   maestrogateway:
-    build: .
-    image: maestrogateway:latest
+    image: ${MAESTRO_IMAGE:-droidme/maestrogateway:latest}
     # Host networking is required on Linux: the stove exposes its own Wi-Fi access
     # point and must be reachable at 192.168.120.1 from the container host.
     network_mode: host

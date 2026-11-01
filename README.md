@@ -88,9 +88,15 @@ java -jar target/maestrogateway-1.0.0-SNAPSHOT.jar
 
 ### Docker
 
+You can pull the prebuilt multi-arch image (supports `amd64` and Raspberry Pi `arm64`) or build it locally with Jib:
+
 ```bash
+# Build image locally into Docker daemon using Jib:
+mvn compile jib:dockerBuild
+
+# Run with docker compose:
 cp .env.example .env   # edit broker and stove addresses
-docker compose up -d --build
+docker compose up -d
 docker compose logs -f maestrogateway
 ```
 

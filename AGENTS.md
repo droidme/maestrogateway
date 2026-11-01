@@ -26,7 +26,7 @@ java -jar target/maestrogateway-1.0.0-SNAPSHOT.jar \
   --maestro.stove.auto-connect=false --maestro.mqtt.enabled=false --maestro.home-assistant.enabled=false
 ```
 
-Docker: `docker compose up -d --build`. `network_mode: host` is required on Linux because the stove
+Docker: `mvn compile jib:dockerBuild` builds locally into Docker with Jib. Run with `docker compose up -d`. `network_mode: host` is required on Linux because the stove
 is reached at its own AP address; macOS/Windows need a Linux VM or the jar directly.
 
 ## Wiring
