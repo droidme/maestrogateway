@@ -74,7 +74,7 @@ Or build a jar:
 
 ```bash
 mvn clean package
-java -jar target/maestrogateway-1.0.0-SNAPSHOT.jar \
+java -jar target/maestrogateway-1.0.0.jar \
   --maestro.mqtt.broker-url=tcp://192.168.1.10:1883
 ```
 
@@ -83,7 +83,7 @@ Configuration can also be supplied entirely through environment variables:
 ```bash
 MAESTRO_MQTT_BROKER_URL=tcp://192.168.1.10:1883 \
 MAESTRO_STOVE_HOST=192.168.120.1 \
-java -jar target/maestrogateway-1.0.0-SNAPSHOT.jar
+java -jar target/maestrogateway-1.0.0.jar
 ```
 
 ### Docker
@@ -283,7 +283,7 @@ Home Assistant discovery documents, and the Camel frame route.
 To run the application without a stove or broker:
 
 ```bash
-java -jar target/maestrogateway-1.0.0-SNAPSHOT.jar \
+java -jar target/maestrogateway-1.0.0.jar \
   --maestro.stove.auto-connect=false \
   --maestro.mqtt.enabled=false \
   --maestro.home-assistant.enabled=false

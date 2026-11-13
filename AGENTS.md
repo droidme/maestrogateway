@@ -13,7 +13,7 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS; pom targets Java 21
 mvn test                                           # 52 tests, fully offline
 mvn -Dtest=InfoFrameParserTest test                # single class
 mvn -Dtest='InfoFrameParserTest#parsesShortFrames' test
-mvn clean package                                  # fat jar: target/maestrogateway-1.0.0-SNAPSHOT.jar
+mvn clean package                                  # fat jar: target/maestrogateway-1.0.0.jar
 mvn spring-boot:run
 ```
 
@@ -22,7 +22,7 @@ There is no Maven wrapper, CI, lint, formatter, or typecheck step; `mvn test` is
 Run without stove or broker:
 
 ```bash
-java -jar target/maestrogateway-1.0.0-SNAPSHOT.jar \
+java -jar target/maestrogateway-1.0.0.jar \
   --maestro.stove.auto-connect=false --maestro.mqtt.enabled=false --maestro.home-assistant.enabled=false
 ```
 
