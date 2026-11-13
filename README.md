@@ -168,7 +168,7 @@ All properties live under `maestro.*` and can be overridden with environment var
 | `maestro.stove.path` | `MAESTRO_STOVE_PATH` | `/` | WebSocket path |
 | `maestro.stove.connect-timeout` | `MAESTRO_STOVE_CONNECT_TIMEOUT` | `10s` | Connection timeout |
 | `maestro.stove.poll-interval-ms` | `MAESTRO_STOVE_POLL_INTERVAL_MS` | `15000` | Information poll interval |
-| `maestro.stove.ping-interval-ms` | `MAESTRO_STOVE_PING_INTERVAL_MS` | `5000` | WebSocket ping interval |
+| `maestro.stove.ping-interval-ms` | `MAESTRO_STOVE_PING_INTERVAL_MS` | `0` | WebSocket ping interval (`0` disables client pings; stove sends its own pings and `arduino-WebSocketsServer` replies with masked PONGs) |
 | `maestro.stove.read-timeout-ms` | `MAESTRO_STOVE_READ_TIMEOUT_MS` | `45000` | Reconnect when no frame arrived for this long |
 | `maestro.stove.reconnect-delay-ms` | `MAESTRO_STOVE_RECONNECT_DELAY_MS` | `2000` | Delay between reconnect attempts |
 | `maestro.stove.alert-after-failed-reconnects` | `MAESTRO_STOVE_ALERT_AFTER_FAILED_RECONNECTS` | `5` | Failed attempts before `disconnected` is published |

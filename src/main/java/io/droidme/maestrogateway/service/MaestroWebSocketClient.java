@@ -99,8 +99,10 @@ public class MaestroWebSocketClient implements ApplicationListener<ApplicationRe
         MaestroProperties.Stove stove = properties.stove();
         log.info("Websocket: starting client for ws://{}:{}{}", stove.host(), stove.port(), normalizedPath());
         scheduleConnect(0);
-        scheduler.scheduleWithFixedDelay(this::ping, stove.pingIntervalMs(), stove.pingIntervalMs(),
-                TimeUnit.MILLISECONDS);
+        if (stove.pingIntervalMs() > 0) {
+            scheduler.scheduleWithFixedDelay(this::ping, stove.pingIntervalMs(), stove.pingIntervalMs(),
+                    TimeUnit.MILLISECONDS);
+        }
         long watchdogPeriod = Math.max(stove.readTimeoutMs() / 2, 1_000);
         scheduler.scheduleWithFixedDelay(this::watchdog, stove.readTimeoutMs(), watchdogPeriod,
                 TimeUnit.MILLISECONDS);
