@@ -86,22 +86,56 @@ MAESTRO_STOVE_HOST=192.168.120.1 \
 java -jar target/maestrogateway-1.0.0.jar
 ```
 
-### Docker
+### Docker & Raspberry Pi
 
-You can pull the prebuilt multi-arch image (supports `amd64` and Raspberry Pi `arm64`) or build it locally with Jib:
+Prebuilt multi-arch images (`linux/amd64` and `linux/arm64` for Raspberry Pi) are available on Docker Hub:
+[`droidme/maestrogateway:latest`](https://hub.docker.com/r/droidme/maestrogateway) (or pinned release `droidme/maestrogateway:1.0.0`).
+
+#### Network Requirements (Raspberry Pi / Linux)
+
+The MCZ stove typically acts as its own Wi-Fi access point (`192.168.120.1:81`):
+* Connect the Pi's Wi-Fi (`wlan0`) to the stove's access point.
+* Connect the Pi's Ethernet (`eth0`) to your local network (where your MQTT broker or Home Assistant runs).
+* `network_mode: host` (or `--net=host`) is **required** on Linux so the container directly uses the host interfaces to reach `192.168.120.1`.
+*(Note: on macOS/Windows, Docker host networking has limitations; use a Linux VM or run the standalone jar).*
+
+#### Option A: Docker Compose (Recommended)
+
+1. Clone or copy `docker-compose.yml` and `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Edit `.env` to set your MQTT broker address and credentials:
+   ```dotenv
+   MAESTRO_MQTT_BROKER_URL=tcp://192.168.1.10:1883
+   MAESTRO_STOVE_HOST=192.168.120.1
+   ```
+3. Start the container:
+   ```bash
+   docker compose up -d
+   docker compose logs -f maestrogateway
+   ```
+
+#### Option B: Standalone `docker run`
 
 ```bash
-# Build image locally into Docker daemon using Jib:
-mvn compile jib:dockerBuild
-
-# Run with docker compose:
-cp .env.example .env   # edit broker and stove addresses
-docker compose up -d
-docker compose logs -f maestrogateway
+docker run -d \
+  --name maestrogateway \
+  --restart unless-stopped \
+  --net=host \
+  -e MAESTRO_MQTT_BROKER_URL="tcp://192.168.1.10:1883" \
+  -e MAESTRO_STOVE_HOST="192.168.120.1" \
+  -e MAESTRO_HOME_ASSISTANT_ENABLED="true" \
+  -e TZ="Europe/Berlin" \
+  droidme/maestrogateway:1.0.0
 ```
 
-`network_mode: host` is used so the container can reach the stove's access point. Host networking
-works on Linux; on macOS/Windows use a Linux VM or run the jar directly.
+#### Option C: Build image locally with Jib
+
+To build the image locally into your local Docker daemon:
+```bash
+mvn compile jib:dockerBuild
+```
 
 ---
 
