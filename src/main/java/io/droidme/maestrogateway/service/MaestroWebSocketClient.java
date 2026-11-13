@@ -190,8 +190,10 @@ public class MaestroWebSocketClient implements ApplicationListener<ApplicationRe
         Throwable cause = error instanceof CompletionException && error.getCause() != null
                 ? error.getCause()
                 : error;
+        Throwable root = cause.getCause() != null ? cause.getCause() : cause;
+        String detail = root.getMessage() != null ? " (" + root.getMessage() + ")" : "";
         int failures = failedReconnects.incrementAndGet();
-        log.warn("Websocket: connection to {} failed (attempt {}): {}", uri, failures, cause.toString());
+        log.warn("Websocket: connection to {} failed (attempt {}): {}{}", uri, failures, cause.toString(), detail, cause);
         if (failures > properties.stove().alertAfterFailedReconnects()) {
             connectionListener.onDisconnected(true);
         }
@@ -218,7 +220,7 @@ public class MaestroWebSocketClient implements ApplicationListener<ApplicationRe
             return;
         }
         try {
-            current.sendPing(ByteBuffer.wrap(new byte[] {(byte) 0x9e}));
+            current.sendPing(ByteBuffer.allocate(0));
         } catch (Exception e) {
             log.debug("Websocket: ping failed: {}", e.toString());
         }
@@ -360,7 +362,9 @@ public class MaestroWebSocketClient implements ApplicationListener<ApplicationRe
 
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
-            log.warn("Websocket: error: {}", error.toString());
+            Throwable cause = error.getCause() != null ? error.getCause() : error;
+            String detail = cause.getMessage() != null ? " (" + cause.getMessage() + ")" : "";
+            log.warn("Websocket: error: {}{}", error.toString(), detail, error);
             handleDisconnect();
         }
     }
